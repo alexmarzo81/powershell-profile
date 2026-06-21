@@ -142,13 +142,30 @@ function docs {
     Set-Location -Path ([Environment]::GetFolderPath("MyDocuments"))
 }
 
-# Listing / Viewing
-function la {
-    Get-ChildItem | Format-Table -AutoSize
+# =====================================================================
+# 📦 INTEGRACIÓN TOTAL DE EZA (REEMPLAZO DE LISTADOS)
+# =====================================================================
+# Eliminar el alias 'ls' nativo de Windows para usar nuestra función avanzada
+Remove-Item Alias:ls -Force -ErrorAction SilentlyContinue
+
+function ls {
+    eza --icons=always --group-directories-first $args
 }
 
 function ll {
-    Get-ChildItem -Force | Format-Table -AutoSize
+    eza --long --icons=always --git --group-directories-first $args
+}
+
+function la {
+    eza --all --icons=always --group-directories-first $args
+}
+
+function lt {
+    eza --tree --icons=always --group-directories-first $args
+}
+
+function arbol {
+    eza --tree --icons=always --group-directories-first $args
 }
 
 # Aliases
@@ -195,7 +212,9 @@ ${dim}────────────────────────�
 ${section}󰘴 System Shortcuts & Utilities${reset}
 ${dim}────────────────────────────────────────────────────${reset}
   ${command}docs${reset}             ${accent}→${reset} ${desc}Ir a la carpeta Documentos${reset}
-  ${command}ll${reset} / ${command}la${reset}          ${accent}→${reset} ${desc}Listar archivos (la muestra ocultos)${reset}
+  ${command}ls${reset}               ${accent}→${reset} ${desc}Listar archivos con iconos (Eza)${reset}
+  ${command}ll${reset} / ${command}la${reset}          ${accent}→${reset} ${desc}ll: detalles + Git | la: muestra ocultos${reset}
+  ${command}lt${reset} / ${command}arbol${reset}       ${accent}→${reset} ${desc}Muestra el directorio actual en árbol estético${reset}
   ${command}mkcd <dir>${reset}       ${accent}→${reset} ${desc}Crear directorio y entrar en él${reset}
   ${command}touch <file>${reset}     ${accent}→${reset} ${desc}Crear un archivo vacío${reset}
   ${command}trash <path>${reset}     ${accent}→${reset} ${desc}Enviar archivo/carpeta a la papelera${reset}
@@ -240,7 +259,7 @@ function path {
 
 # Muestra tu IP local y tu IP pública al instante
 function myip {
-    $local = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.IPAddress -notlike "127.*" -and $_.InterfaceAlias -notlike "*Loopback*"}).IPAddress[0]
+    $local = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.IPAddress -notlike "127.*" -and $_.InterfaceAlias -notlike "*Loopback*"}).IPAddress | Select-Object -First 1
     try {
         $public = (Invoke-RestMethod -Uri "https://api.ipify.org" -TimeoutSec 3).Trim()
     } catch {
