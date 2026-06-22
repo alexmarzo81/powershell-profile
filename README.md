@@ -1,4 +1,4 @@
-# 󰘳 Mi Entorno de PowerShell 7 & Dotfiles
+# 💻 Mi Entorno de PowerShell 7 & Dotfiles
 
 Este repositorio contiene mis scripts de automatización, optimizaciones y la configuración personalizada de mi terminal de Windows basada en **PowerShell 7**, utilizando **Oh My Posh**, **Zoxide** y **Eza**.
 
