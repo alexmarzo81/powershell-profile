@@ -117,7 +117,9 @@ function winutildev {
     Invoke-RestMethod https://christitus.com/windev | Invoke-Expression
 }
 
-# Git Shortcuts
+# =====================================================================
+# 󰊢 GIT SHORTCUTS & AUTOMATIONS
+# =====================================================================
 function gs { git status }
 function ga { git add . }
 Remove-Item Alias:gp -Force -ErrorAction SilentlyContinue
@@ -132,10 +134,53 @@ function gcom {
     git commit -m "$args"
 }
 
+# lazyg: Ejecuta add, commit y push de manera estricta SOLO en el repositorio local activo
 function lazyg {
-    git add .
-    git commit -m "$args"
-    git push
+    $isGitRepo = git rev-parse --is-inside-work-tree 2>$null
+    if ($isGitRepo -eq "true") {
+        if ([string]::IsNullOrWhiteSpace($args)) {
+            Write-Host "❌ Error: Debes proporcionar un mensaje para el commit. Ejemplo: lazyg 'Mi mensaje'" -ForegroundColor Red
+            return
+        }
+        git add .
+        git commit -m "$args"
+        git push
+    } else {
+        Write-Host "❌ Error: No estás dentro de un repositorio Git activo." -ForegroundColor Red
+    }
+}
+
+# lazyp: Comando exclusivo para respaldar tu configuración de PowerShell desde cualquier sitio.
+# Automatiza el flujo (git add + commit + push) específicamente para el directorio del perfil.
+function lazyp {
+    if ([string]::IsNullOrWhiteSpace($args)) {
+        Write-Host "❌ Error: Debes proporcionar un mensaje para el commit. Ejemplo: lazyp 'Mi mensaje'" -ForegroundColor Red
+        return
+    }
+
+    # Guardamos la ubicación actual antes de hacer el salto de directorio
+    $originalLocation = Get-Location
+    $profileDir = Split-Path $PROFILE
+
+    Write-Host "⚠️  Vas a respaldar tu entorno de PowerShell en GitHub." -ForegroundColor Yellow
+    Write-Host "Se subirán los cambios de: $profileDir" -ForegroundColor Gray
+    $confirmacion = Read-Host "¿Estás seguro de que deseas continuar? (y/n)"
+
+    if ($confirmacion -eq 'y' -or $confirmacion -eq 'Y') {
+        Write-Host "`n📦 Viajando a la configuración de PowerShell..." -ForegroundColor Yellow
+        Set-Location -Path $profileDir
+        
+        # Ejecutamos el ciclo de Git
+        git add .
+        git commit -m "$args"
+        git push
+        
+        # Regresamos a la carpeta donde estábamos originalmente
+        Set-Location -Path $originalLocation
+        Write-Host "✅ ¡Entorno de PowerShell respaldado en GitHub con éxito!" -ForegroundColor Green
+    } else {
+        Write-Host "`n❌ Operación cancelada. No se ha realizado ningún cambio." -ForegroundColor Red
+    }
 }
 
 function docs {
@@ -145,33 +190,17 @@ function docs {
 # =====================================================================
 # 📦 INTEGRACIÓN TOTAL DE EZA (REEMPLAZO DE LISTADOS)
 # =====================================================================
-# Eliminar el alias 'ls' nativo de Windows para usar nuestra función avanzada
 Remove-Item Alias:ls -Force -ErrorAction SilentlyContinue
 
-function ls {
-    eza --icons=always --group-directories-first $args
-}
-
-function ll {
-    eza --long --icons=always --git --group-directories-first $args
-}
-
-function la {
-    eza --all --icons=always --group-directories-first $args
-}
-
-function lt {
-    eza --tree --icons=always --group-directories-first $args
-}
-
-function arbol {
-    eza --tree --icons=always --group-directories-first $args
-}
+function ls { eza --icons=always --group-directories-first $args }
+function ll { eza --long --icons=always --git --group-directories-first $args }
+function la { eza --all --icons=always --group-directories-first $args }
+function lt { eza --tree --icons=always --group-directories-first $args }
+function arbol { eza --tree --icons=always --group-directories-first $args }
 
 # Aliases
 Set-Alias -Name unzip -Value Expand-Archive
 Set-Alias -Name grep -Value Select-String
-
 
 # =====================================================================
 # 🛠️ FUNCIÓN DE AYUDA / ALIAS PERSONALIZADOS
@@ -192,9 +221,9 @@ ${dim}━━━━━━━━━━━━━━━━━━━━━━━━�
 
 ${section}🛠️ Mis Herramientas Personalizadas${reset}
 ${dim}────────────────────────────────────────────────────${reset}
-  ${command}perfil${reset}           ${accent}→${reset} ${desc}Abre este perfil en Visual Studio Code${reset}
+  ${command}perfil${reset}           ${accent}→${reset} ${desc}Abre la carpeta de configuración en VS Code${reset}
   ${command}admin${reset}            ${accent}→${reset} ${desc}Nueva pestaña de Terminal como Administrador${reset}
-  ${command}update${reset}           ${accent}→${reset} ${desc}Actualiza las Apps (Winget) + PowerShell 7${reset}
+  ${command}update${reset}           ${accent}→${reset} ${desc}Actualiza las Apps (Winget + Chocolatey) + PWSH 7${reset}
   ${command}myip${reset}             ${accent}→${reset} ${desc}Muestra tu IP Local y Pública en tiempo real${reset}
   ${command}path${reset}             ${accent}→${reset} ${desc}Muestra las rutas del sistema línea por línea${reset}
 
@@ -233,31 +262,21 @@ ${dim}━━━━━━━━━━━━━━━━━━━━━━━━�
 "@
 }
 
-# Redireccionamos el comando "alias" para que ejecute nuestra ayuda limpia
 Remove-Item Alias:alias -Force -ErrorAction SilentlyContinue
 function alias { Show-Help }
-
 
 # =====================================================================
 # 🔥 SECCIÓN PERSONALIZADA 
 # =====================================================================
 
-#Función de admin
-function admin {
-    Start-Process wt -Verb RunAs
-}
+function admin { Start-Process wt -Verb RunAs }
 
-#Función $PROFILE
-function perfil {
-    code $PROFILE
-}
+# OPTIMIZACIÓN: Abre la carpeta entera de configuración en lugar de solo el archivo de perfil suelto.
+# Así puedes editar 'update.ps1' y el perfil al mismo tiempo en la barra lateral de VS Code.
+function perfil { code (Split-Path $PROFILE) }
 
-# Muestra las rutas del PATH del sistema línea por línea (súper legible)
-function path {
-    $env:Path -split ';' | Where-Object { $_ }
-}
+function path { $env:Path -split ';' | Where-Object { $_ } }
 
-# Muestra tu IP local y tu IP pública al instante
 function myip {
     $local = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.IPAddress -notlike "127.*" -and $_.InterfaceAlias -notlike "*Loopback*"}).IPAddress | Select-Object -First 1
     try {
@@ -269,70 +288,22 @@ function myip {
     Write-Host "🌐 IP Pública: " -NoNewline; Write-Host $public -ForegroundColor Green
 }
 
-# Actualiza todo el software del PC + Comprobación estricta de PowerShell 7
-function update {
-    Clear-Host
-    Write-Host "🔍 Sincronizando repositorios y buscando actualizaciones..." -ForegroundColor Yellow
-    
-    # Fuerza a winget a actualizar su base de datos local
-    winget source update | Out-Null 
-    
-    # Muestra la lista de aplicaciones desactualizadas (incluyendo las de versión desconocida)
-    winget upgrade --include-unknown
-    
-    Write-Host "`n📋 ¿Cómo deseas proceder?" -ForegroundColor Cyan
-    Write-Host "  [1] Actualizar TODO de golpe (Aceptando licencias automáticamente)" -ForegroundColor Green
-    Write-Host "  [2] Actualizar una aplicación específica por su ID" -ForegroundColor Green
-    Write-Host "  [3] Forzar actualización de PowerShell 7" -ForegroundColor Magenta
-    Write-Host "  [4] Cancelar" -ForegroundColor Red
-    
-    $opcion = Read-Host "`nSelecciona una opción (1-4)"
-    
-    switch ($opcion) {
-        "1" {
-            Write-Host "`n🚀 Actualizando todo el sistema..." -ForegroundColor Green
-            winget upgrade --all --include-unknown --accept-package-agreements --accept-source-agreements
-        }
-        "2" {
-            $id = Read-Host "`nIntroduce el ID de la aplicación (ej: Anthropic.Claude)"
-            if (-not [string]::IsNullOrWhiteSpace($id)) {
-                Write-Host "`n🚀 Actualizando $id..." -ForegroundColor Green
-                winget upgrade --id $id --accept-package-agreements --accept-source-agreements
-            } else {
-                Write-Host "❌ ID no válido." -ForegroundColor Red
-            }
-        }
-        "3" {
-            Write-Host "`n🚀 Saltando Winget: Descargando la última versión directamente desde GitHub..." -ForegroundColor Magenta
-            # El script oficial de Microsoft consulta GitHub, descarga el MSI más reciente (7.6.3) y lo actualiza
-            Invoke-Expression "& { $(Invoke-RestMethod https://aka.ms/install-powershell.ps1) } -UseMSI"
-        }
-        default {
-            Write-Host "`n❌ Operación cancelada." -ForegroundColor Yellow
-        }
-    }
-}
+# OPTIMIZACIÓN: Carga dinámica del script utilizando la ruta del perfil actual (Evita rutas estáticas con nombres de usuario)
+$scriptUpdatePath = Join-Path (Split-Path $PROFILE) "update.ps1"
+if (Test-Path $scriptUpdatePath) { . $scriptUpdatePath }
 
 # Detectar si la sesión actual es Administrador
 $currentPrincipal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
 $isAdmin = $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
 if ($isAdmin) {
-    # 1. Cambia el título de la pestaña/ventana
     $Host.UI.RawUI.WindowTitle = "⚡ ADMINISTRADOR ⚡"
-
-    # 2. Muestra un aviso rojo llamativo al abrirse
     Write-Host "`n    ⚠️  MODO ADMINISTRADOR  ⚠️`n" -ForegroundColor Red
 
-    # 3. Intercepta el tema y fuerza el color naranja de peligro
     if (Test-Path $poshTheme) {
         try {
             $themeContent = Get-Content $poshTheme -Raw
-            
-            # Reemplaza cualquier variante de azul/cian de fondo por el naranja de advertencia (#D65D0E)
-            $themeContent = $themeContent -replace '#193549', '#D65D0E'
-            $themeContent = $themeContent -replace '#007acc', '#D65D0E'
-            $themeContent = $themeContent -replace '#0077c2', '#D65D0E'
+            $themeContent = $themeContent -replace '#193549', '#D65D0E' -replace '#007acc', '#D65D0E' -replace '#0077c2', '#D65D0E'
             
             if ($themeContent -match '"background"\s*:\s*"([^"]+)"') {
                 $detectedColor = $Matches[1]
@@ -348,31 +319,16 @@ if ($isAdmin) {
     }
 }
 
-
 # =====================================================================
 # 🚀 INICIALIZACIÓN DE ENTORNO (SIEMPRE AL FINAL DEL ARCHIVO)
 # =====================================================================
 $shouldInitPosh = $false
 if (Get-Command oh-my-posh -ErrorAction SilentlyContinue) {
-    if (Test-Path $poshTheme) {
-        $shouldInitPosh = $true
-    } else {
-        Write-Warning "oh-my-posh theme not found at $poshTheme."
-    }
-} else {
-    Write-Warning "oh-my-posh is not installed."
-}
+    if (Test-Path $poshTheme) { $shouldInitPosh = $true } else { Write-Warning "oh-my-posh theme not found at $poshTheme." }
+} else { Write-Warning "oh-my-posh is not installed." }
 
 $shouldInitZoxide = $false
-if (Get-Command zoxide -ErrorAction SilentlyContinue) {
-    $shouldInitZoxide = $true
-} else {
-    Write-Warning "zoxide is not installed."
-}
+if (Get-Command zoxide -ErrorAction SilentlyContinue) { $shouldInitZoxide = $true } else { Write-Warning "zoxide is not installed." }
 
-if ($shouldInitPosh) {
-    Invoke-Expression (& { (oh-my-posh init pwsh --config $poshTheme | Out-String) })
-}
-if ($shouldInitZoxide) {
-    Invoke-Expression (& { (zoxide init --cmd z powershell | Out-String) })
-}
+if ($shouldInitPosh) { Invoke-Expression (& { (oh-my-posh init pwsh --config $poshTheme | Out-String) }) }
+if ($shouldInitZoxide) { Invoke-Expression (& { (zoxide init --cmd z powershell | Out-String) }) }
