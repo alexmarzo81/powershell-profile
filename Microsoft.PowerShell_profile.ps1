@@ -76,8 +76,26 @@ function trash ($Path) {
     }
 }
 
-function ff ($Name) {
-    Get-ChildItem -Recurse -Filter $Name -File | Select-Object -ExpandProperty FullName
+# 📁 Buscar SOLO CARPETAS en todos los discos
+function fd {
+    param([string]$Name)
+    if (-not $Name) { 
+        Write-Host "⚠️  Uso: fd <nombre_carpeta>" -ForegroundColor Yellow
+        return 
+    }
+    $drives = (Get-PSDrive -PSProvider FileSystem).Root | ForEach-Object { $_.TrimEnd('\') }
+    fd.exe --type directory $Name $drives 2>$null
+}
+
+# 📄 Buscar ARCHIVOS Y CARPETAS en todos los discos
+function ff {
+    param([string]$Name)
+    if (-not $Name) { 
+        Write-Host "⚠️  Uso: ff <nombre_archivo_o_carpeta>" -ForegroundColor Yellow
+        return 
+    }
+    $drives = (Get-PSDrive -PSProvider FileSystem).Root | ForEach-Object { $_.TrimEnd('\') }
+    fd.exe $Name $drives 2>$null
 }
 
 function head ($Path) {
@@ -202,9 +220,7 @@ function arbol { eza --tree --icons=always --group-directories-first $args }
 Set-Alias -Name unzip -Value Expand-Archive
 Set-Alias -Name grep -Value Select-String
 
-# =====================================================================
-# 🛠️ FUNCIÓN DE AYUDA / ALIAS PERSONALIZADOS
-# =====================================================================
+# Toolkit personal de herramientas y atajos de comandos
 function Show-Help {
     $title    = $PSStyle.Foreground.BrightMagenta
     $section  = $PSStyle.Foreground.BrightBlue
@@ -221,7 +237,7 @@ ${dim}━━━━━━━━━━━━━━━━━━━━━━━━�
 
 ${section}🛠️ Mis Herramientas Personalizadas${reset}
 ${dim}────────────────────────────────────────────────────${reset}
-  ${command}perfil${reset}           ${accent}→${reset} ${desc}Abre la carpeta de configuración en VS Code${reset}
+  ${command}perfil${reset}           ${accent}→${reset} ${desc}Abre directamente tu archivo `$PROFILE en VS Code${reset}
   ${command}admin${reset}            ${accent}→${reset} ${desc}Nueva pestaña de Terminal como Administrador${reset}
   ${command}update${reset}           ${accent}→${reset} ${desc}Actualiza las Apps (Winget + Chocolatey) + PWSH 7${reset}
   ${command}myip${reset}             ${accent}→${reset} ${desc}Muestra tu IP Local y Pública en tiempo real${reset}
@@ -237,6 +253,7 @@ ${dim}────────────────────────�
   ${command}gp / gpush${reset}      ${accent}→${reset} ${desc}git push${reset}
   ${command}gpull${reset}            ${accent}→${reset} ${desc}git pull${reset}
   ${command}lazyg <msg>${reset}     ${accent}→${reset} ${desc}Automatiza: add + commit + push de golpe${reset}
+  ${command}lazyp <msg>${reset}     ${accent}→${reset} ${desc}Respalda tus Dotfiles de PowerShell en GitHub${reset}
 
 ${section}󰘴 System Shortcuts & Utilities${reset}
 ${dim}────────────────────────────────────────────────────${reset}
@@ -248,32 +265,51 @@ ${dim}────────────────────────�
   ${command}touch <file>${reset}     ${accent}→${reset} ${desc}Crear un archivo vacío${reset}
   ${command}trash <path>${reset}     ${accent}→${reset} ${desc}Enviar archivo/carpeta a la papelera${reset}
   ${command}unzip <file>${reset}     ${accent}→${reset} ${desc}Extraer archivo .zip${reset}
-  ${command}ff <name>${reset}         ${accent}→${reset} ${desc}Buscar archivos por nombre${reset}
+  ${command}fd <name>${reset}        ${accent}→${reset} ${desc}Buscar SOLO CARPETAS en todos los discos (C:, D:, E:, F:...)${reset}
+  ${command}ff <name>${reset}        ${accent}→${reset} ${desc}Buscar ARCHIVOS y CARPETAS en todos los discos${reset}
   ${command}grep <pat> [path]${reset} ${accent}→${reset} ${desc}Buscar texto dentro de archivos${reset}
   ${command}head <file>${reset}       ${accent}→${reset} ${desc}Ver las primeras 10 líneas de un archivo${reset}
   ${command}pgrep / pkill${reset}    ${accent}→${reset} ${desc}Buscar / Detener procesos por nombre${reset}
   ${command}k9 <name>${reset}         ${accent}→${reset} ${desc}Atajo rápido para forzar cierre de proceso${reset}
   ${command}uptime${reset}           ${accent}→${reset} ${desc}Tiempo que lleva encendido el sistema${reset}
   ${command}which <name>${reset}       ${accent}→${reset} ${desc}Localizar la ruta de un comando ejecutable${reset}
-  ${command}winutil${reset}          ${accent}→${reset} ${desc}Ejecutar el script WinUtil de Chris Titus${reset}
+  ${command}winutil${reset}           ${accent}→${reset} ${desc}Ejecutar el script WinUtil de Chris Titus${reset}
 
-${dim}💡 Nota: Para ver la lista nativa de Windows usa: Get-Alias${reset}
-${dim}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${reset}
+${section}📋 Alias Nativos del Sistema (Get-Alias)${reset}
+${dim}────────────────────────────────────────────────────${reset}
 "@
+
+    $nativeAliases = Get-Alias | Sort-Object Name | ForEach-Object {
+        "  ${command}$($_.Name.PadRight(7))${reset} ${accent}→${reset} ${desc}$($_.Definition.PadRight(23))${reset}"
+    }
+
+    $chunkSize = 15
+    for ($i = 0; $i -lt $nativeAliases.Count; $i += ($chunkSize * 2)) {
+        for ($j = 0; $j -lt $chunkSize; $j++) {
+            $leftIndex = $i + $j
+            $rightIndex = $i + $chunkSize + $j
+            
+            $leftText = if ($leftIndex -lt $nativeAliases.Count) { $nativeAliases[$leftIndex] } else { "" }
+            $rightText = if ($rightIndex -lt $nativeAliases.Count) { $nativeAliases[$rightIndex] } else { "" }
+            
+            if ($leftText -ne "" -or $rightText -ne "") {
+                if ($leftText -eq "") { $leftText = " " * 36 }
+                Write-Host "$leftText   $rightText"
+            }
+        }
+    }
+    Write-Host "${dim}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${reset}"
 }
 
+# Alias para desplegar el menu visual de ayuda completo
 Remove-Item Alias:alias -Force -ErrorAction SilentlyContinue
 function alias { Show-Help }
 
-# =====================================================================
-# 🔥 SECCIÓN PERSONALIZADA 
-# =====================================================================
-
+# Apertura de pestaña con privilegios elevados de Administrador
 function admin { Start-Process wt -Verb RunAs }
 
-# OPTIMIZACIÓN: Abre la carpeta entera de configuración en lugar de solo el archivo de perfil suelto.
-# Así puedes editar 'update.ps1' y el perfil al mismo tiempo en la barra lateral de VS Code.
-function perfil { code (Split-Path $PROFILE) }
+# Alias para abrir directamente perfil PowerShell
+function perfil { code $PROFILE }
 
 function path { $env:Path -split ';' | Where-Object { $_ } }
 
