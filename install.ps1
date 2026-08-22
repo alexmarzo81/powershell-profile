@@ -125,3 +125,94 @@ Update-SessionPath
 
 Write-Host "`n✨ ¡Ecosistema base configurado con éxito!" -ForegroundColor Green
 Write-Host "💡 RECUERDA: Configura tu Terminal de Windows para usar la fuente 'CaskaydiaCove Nerd Font' para ver los iconos correctamente." -ForegroundColor Magenta
+
+# ==============================================================================
+# 10. Verificación final: comprueba que todo lo anterior quedó realmente
+#     operativo (no solo "instalado") y detecta rutas rotas/duplicadas en PATH.
+#     Solo informa -- no modifica nada, para no arriesgar el PATH del sistema.
+# ==============================================================================
+Write-Host "`n🔍 Verificación final del entorno..." -ForegroundColor Cyan
+$issues = @()
+
+Write-Host "`n  -- Comandos --" -ForegroundColor DarkCyan
+$checkCommands = @("git", "pwsh", "oh-my-posh", "zoxide", "eza", "fd.exe", "fzf.exe", "npm", "node", "python", "pip", "code")
+foreach ($cmd in $checkCommands) {
+    if (Get-Command $cmd -ErrorAction SilentlyContinue) {
+        Write-Host "  ✅ $cmd" -ForegroundColor Green
+    } else {
+        Write-Host "  ❌ $cmd (no encontrado)" -ForegroundColor Red
+        $issues += "Comando '$cmd' no se encuentra en PATH tras la instalación."
+    }
+}
+
+Write-Host "`n  -- Módulos de PowerShell --" -ForegroundColor DarkCyan
+foreach ($module in ($modules + "PSReadLine")) {
+    if (Get-Module -ListAvailable -Name $module) {
+        Write-Host "  ✅ $module" -ForegroundColor Green
+    } else {
+        Write-Host "  ❌ $module (no instalado)" -ForegroundColor Red
+        $issues += "Módulo de PowerShell '$module' no está instalado."
+    }
+}
+
+Write-Host "`n  -- Archivos clave del repo --" -ForegroundColor DarkCyan
+$repoRoot = $PSScriptRoot
+$keyFiles = @("cobalt2.omp.json", "Microsoft.PowerShell_profile.ps1")
+foreach ($file in $keyFiles) {
+    $path = Join-Path $repoRoot $file
+    if (Test-Path $path) {
+        Write-Host "  ✅ $file" -ForegroundColor Green
+    } else {
+        Write-Host "  ❌ $file (no existe en $repoRoot)" -ForegroundColor Red
+        $issues += "Falta '$file' en la carpeta del repo ($repoRoot)."
+    }
+}
+if (-not (Test-Path $claudeExe)) {
+    Write-Host "  ❌ Claude Code CLI (no existe en $claudeExe)" -ForegroundColor Red
+    $issues += "Claude Code CLI no se encuentra en '$claudeExe'."
+} else {
+    Write-Host "  ✅ Claude Code CLI" -ForegroundColor Green
+}
+
+Write-Host "`n  -- `$PROFILE --" -ForegroundColor DarkCyan
+if (Test-Path $PROFILE) {
+    Write-Host "  ✅ $PROFILE" -ForegroundColor Green
+} else {
+    Write-Host "  ❌ `$PROFILE no existe todavía en $PROFILE" -ForegroundColor Red
+    $issues += "`$PROFILE ('$PROFILE') no existe -- ejecuta Restore-PowerShellProfile.ps1 para crear el puente."
+}
+
+Write-Host "`n  -- PATH: entradas rotas o duplicadas --" -ForegroundColor DarkCyan
+$machinePath = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
+$userPath    = [System.Environment]::GetEnvironmentVariable("Path", "User")
+$allEntries  = @($machinePath -split ';') + @($userPath -split ';') | Where-Object { $_ -and $_.Trim() }
+
+$broken = $allEntries | Where-Object { -not (Test-Path $_) } | Select-Object -Unique
+$duplicates = $allEntries | Group-Object { $_.TrimEnd('\').ToLowerInvariant() } | Where-Object { $_.Count -gt 1 } | ForEach-Object { $_.Group[0] }
+
+if ($broken.Count -eq 0) {
+    Write-Host "  ✅ Ninguna carpeta rota en PATH (Machine + User)" -ForegroundColor Green
+} else {
+    foreach ($b in $broken) {
+        Write-Host "  ❌ Ruta rota en PATH: $b" -ForegroundColor Red
+        $issues += "PATH contiene una carpeta que ya no existe: '$b'."
+    }
+}
+if ($duplicates.Count -eq 0) {
+    Write-Host "  ✅ Sin entradas duplicadas en PATH" -ForegroundColor Green
+} else {
+    foreach ($d in $duplicates) {
+        Write-Host "  ⚠️  Entrada duplicada en PATH: $d" -ForegroundColor Yellow
+        $issues += "PATH tiene la carpeta '$d' repetida más de una vez."
+    }
+}
+
+Write-Host "`n═══════════════════════════════════════════" -ForegroundColor Magenta
+if ($issues.Count -eq 0) {
+    Write-Host "  🩺 VERIFICACIÓN: TODO OK, nada pendiente." -ForegroundColor Green
+} else {
+    Write-Host "  🩺 VERIFICACIÓN: $($issues.Count) cosa(s) que revisar:" -ForegroundColor Yellow
+    $issues | ForEach-Object { Write-Host "     - $_" -ForegroundColor Yellow }
+    Write-Host "  (esto solo informa, no se ha modificado nada automáticamente)" -ForegroundColor DarkGray
+}
+Write-Host "═══════════════════════════════════════════" -ForegroundColor Magenta
