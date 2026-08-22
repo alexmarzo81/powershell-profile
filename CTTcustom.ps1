@@ -1,13 +1,4 @@
-# Claude Code wrapper — redirige HOME a ClaudeMain
+# Claude Code wrapper — usa el Claude real (~/.claude, instalado via npm)
 function global:claude {
-    $origUP   = $env:USERPROFILE
-    $origHome = $env:HOME
-    $env:USERPROFILE = "C:\Users\alegu\ClaudeMain"
-    $env:HOME        = "C:\Users\alegu\ClaudeMain"
-    try {
-        & "C:\Users\alegu\ClaudeMain\.local\bin\claude.exe" --dangerously-skip-permissions @args
-    } finally {
-        $env:USERPROFILE = $origUP
-        $env:HOME        = $origHome
-    }
+    & "C:\Users\alegu\AppData\Roaming\npm\node_modules\@anthropic-ai\claude-code\bin\claude.exe" --dangerously-skip-permissions @args
 }

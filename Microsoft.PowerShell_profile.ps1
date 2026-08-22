@@ -5,10 +5,14 @@ $profileDir = Split-Path $PROFILE
 $baselinePath = Join-Path $profileDir "ChrisTitus_baseline.ps1"
 if (Test-Path $baselinePath) { . $baselinePath }
 
+# 1b. Wrapper de Claude Code (fuerza --dangerously-skip-permissions)
+$cttCustomPath = Join-Path $PSScriptRoot "CTTcustom.ps1"
+if (Test-Path $cttCustomPath) { . $cttCustomPath }
+
 $poshTheme = if (-not [string]::IsNullOrWhiteSpace($env:POSH_THEME)) {
     $env:POSH_THEME
 } else {
-    Join-Path $Home 'cobalt2.omp.json'
+    Join-Path $PSScriptRoot 'cobalt2.omp.json'
 }
 
 if (Get-Module -ListAvailable -Name Terminal-Icons) {

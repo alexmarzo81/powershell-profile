@@ -1,1 +1,5 @@
 Modules/
+legacy/
+*.bak
+*.hash
+LastExecutionTime.txt
