@@ -4,9 +4,10 @@
 #              formatear/reinstalar Windows. Clona el repositorio de GitHub
 #              SIEMPRE en la misma ruta fija dentro de OneDrive (sin importar
 #              desde que carpeta se ejecute este script), instala todas las
-#              dependencias via install.ps1, y deja el perfil funcionando
+#              dependencias via install.ps1, deja el perfil funcionando
 #              aunque OneDrive todavia no haya terminado de sincronizar
-#              "Documentos".
+#              "Documentos", y configura Windows Terminal (fuente + perfil
+#              por defecto) igual que lo tienes ahora.
 #
 # Repositorio: https://github.com/alexmarzo81/powershell-profile
 # ==============================================================================
@@ -203,10 +204,37 @@ if (-not (Get-Command code -ErrorAction SilentlyContinue)) {
 }
 
 # -----------------------------------------------------------------------------
-# 7. Resumen final. La fuente de Windows Terminal y el perfil por defecto se
-#    dejan para configurar a mano (Ctrl+, > perfil PowerShell > Apariencia >
-#    fuente 'CaskaydiaCove Nerd Font') — este script no toca la configuracion
-#    de Windows Terminal.
+# 7. Windows Terminal: fuente Nerd Font + PowerShell 7 como perfil por defecto,
+#    igual que lo tienes configurado ahora mismo. Hace copia de seguridad de
+#    settings.json antes de tocarlo.
+# -----------------------------------------------------------------------------
+Write-Step "Configurando Windows Terminal (fuente Nerd Font + PowerShell 7 por defecto)..."
+try {
+    $wtSettingsPath = Get-ChildItem "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_*\LocalState\settings.json" -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($wtSettingsPath) {
+        $json = Get-Content $wtSettingsPath.FullName -Raw | ConvertFrom-Json
+        $pwshProfile = $json.profiles.list | Where-Object { $_.commandline -match 'pwsh\.exe$' -or $_.source -eq 'Windows.Terminal.PowershellCore' } | Select-Object -First 1
+        if ($pwshProfile) {
+            if (-not $pwshProfile.font) { $pwshProfile | Add-Member -NotePropertyName font -NotePropertyValue ([pscustomobject]@{}) -Force }
+            $pwshProfile.font | Add-Member -NotePropertyName face -NotePropertyValue "CaskaydiaCove Nerd Font" -Force
+            $json.defaultProfile = $pwshProfile.guid
+            $backupSettings = "$($wtSettingsPath.FullName).bak-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+            Copy-Item $wtSettingsPath.FullName $backupSettings
+            ($json | ConvertTo-Json -Depth 20) | Set-Content $wtSettingsPath.FullName -Encoding UTF8
+            Write-Ok "Windows Terminal configurado (copia de seguridad: $backupSettings)"
+        } else {
+            Write-Warn2 "No se encontro el perfil de PowerShell 7 en Windows Terminal todavia (normal si es la primera vez que se abre). Configuralo a mano la primera vez."
+        }
+    } else {
+        Write-Warn2 "No se encontro settings.json de Windows Terminal (¿esta instalado desde la Store?). Configuralo a mano."
+    }
+} catch {
+    Write-Warn2 "No se pudo configurar Windows Terminal automaticamente: $($_.Exception.Message)"
+    Write-Warn2 "Hazlo a mano: Ctrl+, > perfil PowerShell > Apariencia > fuente 'CaskaydiaCove Nerd Font'."
+}
+
+# -----------------------------------------------------------------------------
+# 8. Resumen final.
 # -----------------------------------------------------------------------------
 Write-Host ""
 Write-Host "########################################################" -ForegroundColor Magenta
@@ -216,6 +244,4 @@ Write-Host ""
 Write-Host "Carpeta maestra : $MasterDir" -ForegroundColor White
 Write-Host "Perfil activo   : $PROFILE" -ForegroundColor White
 Write-Host ""
-Write-Host "Falta a mano: Ctrl+, en Windows Terminal > perfil PowerShell > Apariencia >" -ForegroundColor Yellow
-Write-Host "fuente 'CaskaydiaCove Nerd Font', y fijarlo como perfil por defecto." -ForegroundColor Yellow
 Write-Host "Cierra esta ventana y abre una nueva pestaña de Windows Terminal para ver el resultado." -ForegroundColor Yellow
