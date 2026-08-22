@@ -234,6 +234,30 @@ try {
 }
 
 # -----------------------------------------------------------------------------
+# Nota (incidente 22/08/2026): si tras ejecutar este script las consolas dejan
+# de abrir -- cmd.exe incluido, no solo Windows Terminal -- el culpable casi
+# seguro NO es este script ni el perfil. El diff que se aplica a settings.json
+# arriba es minimo (solo el campo font, defaultProfile puede quedar igual) y
+# no es la causa. Lo que paso esa vez: el paquete Appx Microsoft.WindowsTerminal
+# estaba danado (HRESULT 0x80073D02) y Windows delegaba TODAS las consolas a
+# ese motor via "Aplicacion de terminal predeterminada"
+# (HKCU\Console\%%Startup\DelegationConsole / DelegationTerminal).
+#
+# Lo que lo arreglo ese dia:
+#   1. Abre cmd.exe (si Windows Terminal no abre nada, cmd normalmente si).
+#   2. Repara el paquete Appx desde ahi:
+#      pwsh -NoProfile -Command "Get-AppxPackage *WindowsTerminal* | ForEach-Object { Add-AppxPackage -DisableDevelopmentMode -Register (\"$($_.InstallLocation)\AppXManifest.xml\") }"
+#   3. Configuracion de Windows > Aplicacion de terminal predeterminada:
+#      alterna el motor (Windows Terminal <-> Host de consola de Windows) una
+#      vez o dos hasta que las consolas vuelvan a abrir con normalidad.
+# Detalle completo en el README, seccion Troubleshooting.
+# -----------------------------------------------------------------------------
+Write-Host ""
+Write-Host "    NOTA: si alguna consola (cmd incluido) deja de abrir despues de esto," -ForegroundColor DarkGray
+Write-Host "    no es cosa de este script -- revisa 'Aplicacion de terminal predeterminada'" -ForegroundColor DarkGray
+Write-Host "    en Configuracion de Windows. Ver README > Troubleshooting." -ForegroundColor DarkGray
+
+# -----------------------------------------------------------------------------
 # 8. Resumen final.
 # -----------------------------------------------------------------------------
 Write-Host ""
