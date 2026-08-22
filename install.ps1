@@ -22,14 +22,14 @@ function Update-SessionPath {
 
 # 2. Lista de herramientas esenciales para que el perfil funcione
 $apps = @(
-    @{ id = "JanDeDobbeleer.OhMyPosh"; name = "Oh My Posh" },
-    @{ id = "ajeetdsouza.zoxide";     name = "Zoxide" },
-    @{ id = "eza.eza";                 name = "Eza (ls alternativo)" }
+    @{ id = "JanDeDobbeleer.OhMyPosh"; name = "Oh My Posh"; cmd = "oh-my-posh" },
+    @{ id = "ajeetdsouza.zoxide";     name = "Zoxide";       cmd = "zoxide" },
+    @{ id = "eza.eza";                 name = "Eza (ls alternativo)"; cmd = "eza" }
 )
 
 Write-Host "`n📦 Comprobando e instalando dependencias del sistema..." -ForegroundColor Yellow
 foreach ($app in $apps) {
-    if (-not (Get-Command $app.id.Split('.')[-1] -ErrorAction SilentlyContinue)) {
+    if (-not (Get-Command $app.cmd -ErrorAction SilentlyContinue)) {
         Write-Host "📥 Instalando $($app.name)..." -ForegroundColor Blue
         winget install --id $app.id --source winget --silent --accept-source-agreements --accept-package-agreements | Out-Null
     } else {
@@ -42,7 +42,7 @@ Update-SessionPath
 # 3. Instalación de la fuente tipográfica obligatoria (Nerd Font para iconos)
 Write-Host "`n🎨 Instalando CaskaydiaCove Nerd Font (Requerida para iconos de la terminal)..." -ForegroundColor Yellow
 winget install --id Git.Git --source winget --silent --accept-source-agreements --accept-package-agreements | Out-Null # Asegurar Git por si acaso
-oh-my-posh font install cascadiacode --non-interactive | Out-Null
+oh-my-posh font install cascadiacode | Out-Null
 
 # 4. Módulos de PowerShell usados por el perfil
 $modules = @("Terminal-Icons", "posh-git", "PSFzf", "PSScriptAnalyzer", "z")
@@ -76,6 +76,49 @@ if (-not (Get-Command fzf.exe -ErrorAction SilentlyContinue)) {
     winget install --id junegunn.fzf --source winget --silent --accept-source-agreements --accept-package-agreements | Out-Null
 } else {
     Write-Host "✅ fzf.exe ya está instalado." -ForegroundColor Green
+}
+
+Update-SessionPath
+
+# 7. Node.js / npm (requerido para instalar y ejecutar Claude Code)
+Write-Host "`n📦 Comprobando Node.js / npm..." -ForegroundColor Yellow
+if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
+    Write-Host "📥 Instalando Node.js LTS..." -ForegroundColor Blue
+    winget install --id OpenJS.NodeJS.LTS --source winget --silent --accept-source-agreements --accept-package-agreements | Out-Null
+    Update-SessionPath
+} else {
+    Write-Host "✅ npm ya está instalado." -ForegroundColor Green
+}
+
+# 8. Claude Code CLI (usado por el wrapper `claude` de CTTcustom.ps1)
+Write-Host "`n📦 Comprobando Claude Code CLI..." -ForegroundColor Yellow
+$claudeExe = Join-Path $env:APPDATA "npm\node_modules\@anthropic-ai\claude-code\bin\claude.exe"
+if (-not (Test-Path $claudeExe)) {
+    if (Get-Command npm -ErrorAction SilentlyContinue) {
+        Write-Host "📥 Instalando @anthropic-ai/claude-code..." -ForegroundColor Blue
+        npm install -g @anthropic-ai/claude-code | Out-Null
+    } else {
+        Write-Warning "npm no disponible, no se puede instalar Claude Code. Revisa el paso de Node.js."
+    }
+} else {
+    Write-Host "✅ Claude Code ya está instalado." -ForegroundColor Green
+}
+
+# 9. Python (versión estable) + pip
+Write-Host "`n📦 Comprobando Python..." -ForegroundColor Yellow
+if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
+    Write-Host "📥 Instalando Python (versión estable)..." -ForegroundColor Blue
+    winget install --id Python.Python.3.13 --source winget --silent --accept-source-agreements --accept-package-agreements | Out-Null
+    Update-SessionPath
+} else {
+    Write-Host "✅ Python ya está instalado." -ForegroundColor Green
+}
+if ((Get-Command python -ErrorAction SilentlyContinue) -and -not (Get-Command pip -ErrorAction SilentlyContinue)) {
+    Write-Host "📥 Instalando pip..." -ForegroundColor Blue
+    python -m ensurepip --upgrade | Out-Null
+    Update-SessionPath
+} else {
+    Write-Host "✅ pip ya está instalado." -ForegroundColor Green
 }
 
 Update-SessionPath
